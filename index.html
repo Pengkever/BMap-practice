@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=ED5ebc91fe41f85878c57e54f68b6fae"></script>
+    <!-- 加载鼠标绘制工具 -->
+    <script type="text/javascript" src="http://api.map.baidu.com/library/DrawingManager/1.4/src/DrawingManager_min.js"></script>
+    <link rel="stylesheet" href="http://api.map.baidu.com/library/DrawingManager/1.4/src/DrawingManager_min.css" />
+    <!-- 加载检索信息窗口 
+    <script type="text/javascript" src="http://api.map.baidu.com/library/SearchInfoWindow/1.4/src/SearchInfoWindow_min.js"></script>
+    <link rel="stylesheet" href="http://api.map.baidu.com/library/SearchInfoWindow/1.4/src/SearchInfoWindow_min.css" />-->
+    <!-- 加载几何运算 -->
+    <script type="text/javascript" src="http://api.map.baidu.com/library/GeoUtils/1.2/src/GeoUtils.js"></script>
+    <style type="text/css">        
+        * {
+            margin: 0;
+            padding: 0;            
+        }
+        html, body {
+            height: 100%;
+            font-family: "Microsoft Yahei";
+        }
+        #map {
+            height: 100%;
+            position: absolute;
+            bottom: 0;
+            left: 342px;
+            right: 0;
+        }
+        .container {
+            height: 100%;
+            position: relative;
+        }
+        input, #drawing {
+            font-size: 12px;
+            border-radius: 3px;
+            padding: 5px;
+            margin: 5px 0;
+        }
+        h1 {
+            color: #525454;
+            font-size: 22px;
+            margin: 0 0 10px 0;
+            text-align: center;
+        }
+        #hide-listings, #show-listings, #add-listings,#remove-listings {
+            width: 48%;
+        }
+        .options-box {
+            background: #fff;
+            border: 1px solid #999;
+            border-radius: 3px;
+            height: 100%;
+            line-height: 35px;
+            padding: 10px 20px;
+            text-align: left;
+            width: 340px;
+            box-sizing: border-box;
+        }
+        .text {
+            font-size: 12px;
+        }
+        #drawings {
+            display: inline-block;
+            width: 10%;
+            text-align: center;
+        }
+    </style>
+    <title>百度地图练习</title>
+</head>
+<body>
+    <div class="container">
+        <div class="options-box">
+            <h1>Find Your Home</h1>
+            <div>
+                <input id="add-listings" type="button" value="Add Listings">
+                <input id="remove-listings" type="button" value="Remove Listings">
+                <input id="show-listings" type="button" value="Show Listings">
+                <input id="hide-listings" type="button" value="Hide Listings">
+                <hr>
+                <span class="text">Draw a shape to search within it for homes!</span>
+                <input id="drawing-count" type="button" value="Overlay Count">
+                <span id="drawings">0</span>
+                <input id="clear-drawings" type="button" value="Clear Drawings">
+            </div>
+        </div>
+        <div id="map"></div>
+    </div>
+    <!-- 加载 app.js -->
+    <script type="text/javascript" src="js/app.js"></script>
+</body>
+</html>
