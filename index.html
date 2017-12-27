@@ -1,93 +1,48 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
-    <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=ED5ebc91fe41f85878c57e54f68b6fae"></script>
-    <!-- 加载鼠标绘制工具 -->
-    <script type="text/javascript" src="http://api.map.baidu.com/library/DrawingManager/1.4/src/DrawingManager_min.js"></script>
-    <link rel="stylesheet" href="http://api.map.baidu.com/library/DrawingManager/1.4/src/DrawingManager_min.css" />
-    <!-- 加载检索信息窗口 
-    <script type="text/javascript" src="http://api.map.baidu.com/library/SearchInfoWindow/1.4/src/SearchInfoWindow_min.js"></script>
-    <link rel="stylesheet" href="http://api.map.baidu.com/library/SearchInfoWindow/1.4/src/SearchInfoWindow_min.css" />-->
-    <!-- 加载几何运算 -->
-    <script type="text/javascript" src="http://api.map.baidu.com/library/GeoUtils/1.2/src/GeoUtils.js"></script>
-    <style type="text/css">        
-        * {
-            margin: 0;
-            padding: 0;            
-        }
-        html, body {
-            height: 100%;
-            font-family: "Microsoft Yahei";
-        }
-        #map {
-            height: 100%;
-            position: absolute;
-            bottom: 0;
-            left: 342px;
-            right: 0;
-        }
-        .container {
-            height: 100%;
-            position: relative;
-        }
-        input, #drawing {
-            font-size: 12px;
-            border-radius: 3px;
-            padding: 5px;
-            margin: 5px 0;
-        }
-        h1 {
-            color: #525454;
-            font-size: 22px;
-            margin: 0 0 10px 0;
-            text-align: center;
-        }
-        #hide-listings, #show-listings, #add-listings,#remove-listings {
-            width: 48%;
-        }
-        .options-box {
-            background: #fff;
-            border: 1px solid #999;
-            border-radius: 3px;
-            height: 100%;
-            line-height: 35px;
-            padding: 10px 20px;
-            text-align: left;
-            width: 340px;
-            box-sizing: border-box;
-        }
-        .text {
-            font-size: 12px;
-        }
-        #drawings {
-            display: inline-block;
-            width: 10%;
-            text-align: center;
-        }
-    </style>
-    <title>百度地图练习</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>街区地图</title>
+
+
+    <!-- 加载自定义样式 -->
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+    
+    <!-- 加载百度地图 API -->
+    <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=ED5ebc91fe41f85878c57e54f68b6fae"></script>    
 </head>
 <body>
-    <div class="container">
-        <div class="options-box">
-            <h1>Find Your Home</h1>
-            <div>
-                <input id="add-listings" type="button" value="Add Listings">
-                <input id="remove-listings" type="button" value="Remove Listings">
-                <input id="show-listings" type="button" value="Show Listings">
-                <input id="hide-listings" type="button" value="Hide Listings">
-                <hr>
-                <span class="text">Draw a shape to search within it for homes!</span>
-                <input id="drawing-count" type="button" value="Overlay Count">
-                <span id="drawings">0</span>
-                <input id="clear-drawings" type="button" value="Clear Drawings">
+    <div id="errorMessage" data-bind="visible: !hasData(), text: errorMessage"></div>
+    <div class="container" data-bind="visible: hasData()">
+        <button id="show-menu" data-bind="click: toggleMenu" alt="show/hide menu">
+            <span data-bind="visible: !isShowMenu()">显示</span>
+            <span data-bind="visible: isShowMenu()">隐藏</span>
+        </button>
+        <div id="menu" data-bind="style: { left: isShowMenu()? '15px': '-315px'}">
+            <div id="header">
+                <h3 data-bind="text: header"></h3>
+                <div id="content" data-bind="text: title">
+                    <!-- What is your choice: <select data-bind="options: list, value: selector"></select> -->
+                </div>            
+                <div style="clear: both;"></div>
+                <p class="filter">
+                    Search: <input data-bind="textInput: q" placeholder="input keyword">
+                    <button data-bind="click: clearQueryInput">back</button>
+                </p>
             </div>
+            <ul data-bind="visible: toggle(), foreach: list">
+                <li data-bind="text: $data.getTitle(),click: $parent.clickItem, event: { mouseover: $parent.mouseoverItem, mouseout: $parent.mouseoutItem }"></li>
+                <!-- <li data-bind="text: $data.getTitle()"></li> -->
+            </ul>
+            <div id="currentItem" data-bind="visible: !toggle(), text: currentItem"></div>
         </div>
         <div id="map"></div>
     </div>
-    <!-- 加载 app.js -->
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://cdn.bootcss.com/jquery/1.12.4/jquery.min.js"></script>
+    <!-- Include knockout.js -->
+    <script src="js/knockout-3.4.2.js"></script>
     <script type="text/javascript" src="js/app.js"></script>
 </body>
 </html>
