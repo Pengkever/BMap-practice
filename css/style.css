@@ -1,6 +1,6 @@
-* {
-    margin: 0;
+body, .container, #menu, #header, #map, .city, .filter, .list, .list-item, #content, #currentItem {
     padding: 0;
+    margin: 0;
 }
 html, body {
     height: 100%;
@@ -28,29 +28,29 @@ html, body {
     width: 100%;
     height: 100%;
 }
-h3, .filter {
+.city, .filter {
     padding: 0 4% 4% 4%;
 }
-h3 {
+.city {
     padding-top: 4%;
     margin-left: 20%;
     height: 4%;
     float: left;
 }        
-ul {
+.list {
     margin-top: 2%;
     height: 84%;
     overflow: auto;
     list-style: none;            
     background: rgba(0, 0, 0, 0.6);
 }
-li {
+.list-item {
     padding: 2% 4% 2% 4%;
     font-size: 16px;
     line-height: 20px;
     text-align: justify;
 }
-li:hover {
+.list-item:hover {
     background: #222;
 }
 #content {

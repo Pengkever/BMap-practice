@@ -4,24 +4,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>街区地图</title>
-
-
     <!-- 加载自定义样式 -->
-    <link rel="stylesheet" type="text/css" href="css/style.css">
-    
-    <!-- 加载百度地图 API -->
-    <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=ED5ebc91fe41f85878c57e54f68b6fae"></script>    
+    <link rel="stylesheet" href="css/style.css">    
 </head>
 <body>
     <div id="errorMessage" data-bind="visible: !hasData(), text: errorMessage"></div>
-    <div class="container" data-bind="visible: hasData()">
+    <main class="container" data-bind="visible: hasData()">
         <button id="show-menu" data-bind="click: toggleMenu" alt="show/hide menu">
             <span data-bind="visible: !isShowMenu()">显示</span>
             <span data-bind="visible: isShowMenu()">隐藏</span>
         </button>
         <div id="menu" data-bind="style: { left: isShowMenu()? '15px': '-315px'}">
             <div id="header">
-                <h3 data-bind="text: header"></h3>
+                <h3 data-bind="text: header" class="city"></h3>
                 <div id="content" data-bind="text: title">
                     <!-- What is your choice: <select data-bind="options: list, value: selector"></select> -->
                 </div>            
@@ -31,18 +26,23 @@
                     <button data-bind="click: clearQueryInput">back</button>
                 </p>
             </div>
-            <ul data-bind="visible: toggle(), foreach: list">
-                <li data-bind="text: $data.getTitle(),click: $parent.clickItem, event: { mouseover: $parent.mouseoverItem, mouseout: $parent.mouseoutItem }"></li>
+            <ul data-bind="visible: toggle(), foreach: list" class="list">
+                <li class="list-item" data-bind="text: $data.getTitle(),click: $parent.clickItem, event: { mouseover: $parent.mouseoverItem, mouseout: $parent.mouseoutItem }"></li>
                 <!-- <li data-bind="text: $data.getTitle()"></li> -->
             </ul>
             <div id="currentItem" data-bind="visible: !toggle(), text: currentItem"></div>
         </div>
         <div id="map"></div>
-    </div>
+    </main>
+    <!-- 加载百度地图 API -->
+    <script src="http://api.map.baidu.com/api?v=2.0&ak=ED5ebc91fe41f85878c57e54f68b6fae"></script> 
+    <!-- 加载检索信息窗口及样式文件 -->
+    <script src="http://api.map.baidu.com/library/SearchInfoWindow/1.4/src/SearchInfoWindow_min.js"></script>    
+    <link rel="stylesheet" href="http://api.map.baidu.com/library/SearchInfoWindow/1.4/src/SearchInfoWindow_min.css" />
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="https://cdn.bootcss.com/jquery/1.12.4/jquery.min.js"></script>
     <!-- Include knockout.js -->
     <script src="js/knockout-3.4.2.js"></script>
-    <script type="text/javascript" src="js/app.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>

@@ -2,6 +2,16 @@
 // 步骤： 载入，加载 左侧html 和 初始化的 map
 //        然后 获取数据，再绑定 ViewModel
 // 但是加载 左侧html时就有 data-bind 没有绑定 ViewModel 绑定会报错
+/*
+ * 已经修改：
+ *     1、 $(window).resize()实时监控窗口大小
+ *     2、 点击列表，打开信息窗口，点击back，关闭信息窗口
+ *     3、 添加searchInfoWindow的js文件，防止错误
+ * 明天修改：
+ *     1、下拉菜单更换城市及选项
+ *     2、第三方api获取更多信息
+ *     3、把var 变为 const or let
+ */
 // 经测试，没有绑定 没有new 对象时，不会报错
 // 分离map 独立map对象
 // 初始化数据 使用ajax
@@ -56,9 +66,9 @@ $(function() {
             });
         }
         // 模型
-        var ViewModel = function(arr) {
+        const ViewModel = function(arr) {
             // 初始化地图，中心为成都市，缩放等级13，鼠标滚动缩放开启。
-            var map = new BMap.Map("map");
+            const map = new BMap.Map("map");
             map.centerAndZoom(city, 13);
             map.enableScrollWheelZoom();
 
@@ -93,15 +103,25 @@ $(function() {
                     // 添加跳动动画
                     marker.setAnimation(BMAP_ANIMATION_BOUNCE);
                     // 显示信息窗口
-                    openInfo(content, e);
+                    openInfo(content, e.target);
                 });
+            }
+            // 将信息窗口放置在一个数组中，方便后续清除
+            let searchInfoWindows = [];
+            // 清除所有搜索信息窗口
+            function closeSearchInfoWindow() {
+                // 数组为空直接返回
+                if (!searchInfoWindows.length)return;
+                for(const searchInfoWindow of searchInfoWindows) {
+                    map.removeOverlay(searchInfoWindow);
+                }
             }
 
             // 显示信息窗口函数
-            function openInfo(content, e) {
+            function openInfo(content, marker) {
 
                 // 获取点击目标
-                var marker = e.target;
+                // var marker = e.target;
 
                 // 返回信息窗口的设置
                 function searchInfoWindowOptions(marker) {
@@ -120,11 +140,15 @@ $(function() {
                 }
 
                 // 建立含检索功能的窗体
-                searchInfoWindow = new BMapLib.SearchInfoWindow(map, content, searchInfoWindowOptions(marker));
+                let searchInfoWindow = new BMapLib.SearchInfoWindow(map, content, searchInfoWindowOptions(marker));
 
                 // 打开窗口
                 searchInfoWindow.open(marker);
+
+                // 加入数组
+                searchInfoWindows.push(searchInfoWindow);
             }
+            // 
 
             // 清除动画效果
             function clearAnimation() {
@@ -196,9 +220,13 @@ $(function() {
             this.toggle = ko.observable(true);
             this.clickItem = function(item) {
                 if (!item) return;
+
                 self.currentItem(item.getTitle());
                 // 将地图中心设置为当前标注点
                 map.centerAndZoom(item.getPosition(), 15);
+                // 打开信息窗口
+                openInfo(item.getTitle(), item);
+
                 self.toggle(false);
                 self.q(item.getTitle());
             };
@@ -213,7 +241,7 @@ $(function() {
                 // 移除动画
                 clearAnimation();
                 // 关闭信息窗口
-                map.closeInfoWindow();
+                closeSearchInfoWindow();
                 // 还原地图中心
                 map.centerAndZoom(city, 13);
                 // 改变显示参考值
@@ -222,18 +250,22 @@ $(function() {
             };
             // 查询当前网页正文宽度
             this.bodyScrollWidth = ko.observable(document.body.scrollWidth);
+            // 设定窗口最大值
             this.bodyMax = ko.observable(700);
-            // 按钮内容和判断依据都应该是计算过的
-            // 根据网页正文宽度计算
-            this.comparedWith = function(width, max) {
-                if (width < max) {
-                    return true;
-                } else {
-                    return false;
-                }
-            };
             // 查询列表 left 值的判断依据
             this.isShowMenu = ko.observable(!self.comparedWith(self.bodyScrollWidth(), self.bodyMax()));
+            // 比较当前宽度和最大宽度
+            this.comparedWith = function(width, max) {
+                // 缩减代码
+                return width < max;
+            };
+            // 当窗口发生变化时
+            $(window).resize(function() {
+                // 更新网页正文宽度
+                self.bodyScrollWidth(document.body.scrollWidth);
+                // 更新isShowMenu的值
+                self.isShowMenu(!self.comparedWith(self.bodyScrollWidth(), self.bodyMax()));
+            });
             // 点击按钮执行显示查询列表
             this.toggleMenu = function() {
                 // 改变isShowMenu的为相反
