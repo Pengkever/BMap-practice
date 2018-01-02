@@ -1,279 +1,418 @@
-// 思路变化：将查询 q url 变成参数 更加人性化
-// 步骤： 载入，加载 左侧html 和 初始化的 map
-//        然后 获取数据，再绑定 ViewModel
-// 但是加载 左侧html时就有 data-bind 没有绑定 ViewModel 绑定会报错
 /*
- * 已经修改：
- *     1、 $(window).resize()实时监控窗口大小
- *     2、 点击列表，打开信息窗口，点击back，关闭信息窗口
- *     3、 添加searchInfoWindow的js文件，防止错误
- * 明天修改：
- *     1、下拉菜单更换城市及选项
- *     2、第三方api获取更多信息
- *     3、把var 变为 const or let
+ * 步骤：
+ *    1、建立一个ViewModel,一部分控制menu
+ *    2、另一部分控制map
+ *
+ * 2017-12-30 已完成：
+ * 1、地图载入
+ * 2、实时监控输入字符来筛选列表
+ * 3、点击列表筛选列表(有bug，点击列表长度为0，需要还原列表currentResults)
+ * 明日任务：
+ * 1、地图标记
+ * 2、点击地图标注显示窗口
+ * 3、点击列表筛选标注
+ * 4、第三方API 详细信息
+ * 5、添加信息窗口
+ *
  */
-// 经测试，没有绑定 没有new 对象时，不会报错
-// 分离map 独立map对象
-// 初始化数据 使用ajax
-$(function() {
 
-    function load(content, city) {
-        // 检查传入的内容和城市名非空
-        if (typeof content !== 'string' ||
-            typeof city !== 'string' ||
-            content.length === 0 ||
-            city.length === 0)
-            return console.error(`Iuput not incorrect,This should be string and not null`);
+ $(function() {
+    const ViewModel = function() {
+        // 将 this 赋予 self 方便调用
+        const self = this;
+        // 百度API密钥
+        const BDAK = 'ED5ebc91fe41f85878c57e54f68b6fae';
+        // 初始数据，
+        // 城市列表
+        self.cities = ['北京', '上海', '广州', '杭州', '成都'];
+        // 项目列表
+        self.params = ['餐厅', '酒吧', '景点', '大学']
+        // 当前选择中
+        self.selectCity = ko.observable(self.cities[4]);
+        self.selectParam = ko.observable(self.params[3]);
 
-        // 初始化函数
-        function initialData() {
-            // 返回信息状态
-            function isResults(data) {
-                if (data.status !== 0) {
-                    return showError(data.message)
-                }
-                var viewModel = new ViewModel(data.results);
-                ko.applyBindings(viewModel);
-            }
-            // 显示错误信息
-            function showError(message) {
-                var viewmodel = {
-                    hasData: ko.observable(false),
-                    errorMessage: ko.observable(message)
-                };
-                ko.applyBindings(viewmodel);
-            }
-            // 从百度api 获取 数据
+
+        // 初始化地图函数
+        self.initMap = function() {
+            const map = new BMap.Map('map');
+            map.centerAndZoom(self.selectCity(), 13);
+            map.enableScrollWheelZoom();
+
+            return map;
+        };
+        
+        // 获取地图
+        const cityMap = self.initMap();
+
+        // 添加事件函数，当城市改变时，地图中心设置为当前城市
+        self.choose = function() {
+            cityMap.centerAndZoom(self.selectCity(), 13);
+            // 清空上一次数据
+            self.results([]);
+            // 移除标注
+            self.removeMarkers(cityMap);
+            // 还原页码
+            self.pageNum = 0;
+            // 获取新的数据
+            self.getDataFromBMap();
+            // 获取天气
+            self.getCityWeather();
+        };
+        // 是否显示list-box
+        self.isShowListBox = ko.observable(true);
+        // 从百度地图API获取数据
+        // 数据存放数组
+        self.results = ko.observableArray();
+
+        // page_num 页数
+        self.pageNum = 0;
+        // 是否没有更多数据判断依据
+        self.isEndResults = ko.observable(false);
+        // 更多数据按钮text
+        self.getMoreButtonText = ko.computed(function() {
+            return self.isEndResults()? '已经到尾了': '加载更多';
+        });
+        self.getDataFromBMap = function() {
             $.ajax({
                 url: 'http://api.map.baidu.com/place/v2/search',
                 type: 'GET',
                 dataType: 'jsonp',
-                timeout: '5000',
-                contentType: 'application/json;utf-8',
+                timeout: '3000',
+                contentType: 'application/json; utf-8',
                 data: {
-                    query: content,
-                    region: city,
+                    query: self.selectParam(),
+                    region: self.selectCity(),
                     output: 'json',
-                    ak: 'ED5ebc91fe41f85878c57e54f68b6fae',
+                    ak: BDAK,
+                    page_num: self.pageNum++ 
                 },
                 success: function(data) {
                     console.log('success');
-                    return isResults(data);
+                    // 没有更多数据，就返回true
+                    if (data.results.length === 0) return self.isEndResults(true);
+                    // 获取更多数据
+                    // 暂存当前数数
+                    let tempResult = self.results();
+                    // 连接新旧数据
+                    tempResult = tempResult.concat(data.results);
+                    // 更新数据
+                    self.results(tempResult);
+                    // 添加标注到地图 
+                    self.addDataToMap(cityMap);
                 },
-                error: function(error) {
-                    console.error('error: ', error);
+                error: function(e) {
+                    console.error('Error: ' + e.message);
                 }
             });
-        }
-        // 模型
-        const ViewModel = function(arr) {
-            // 初始化地图，中心为成都市，缩放等级13，鼠标滚动缩放开启。
-            const map = new BMap.Map("map");
-            map.centerAndZoom(city, 13);
-            map.enableScrollWheelZoom();
+        };
 
-            // 声明 markers 数组来存储，地图上添加的 marker
-            // 不用 传递进来的 arr ，1、是为了同意后期调用 2、arr数据保持不变性
-            var markers = [];
-            arr.forEach(function(item) {
-                // 百度地图api  Point对象 lng 经度在先，lat 纬度在后,
-                // marker.getPosition() 返回的顺序 同Point
-                // 否则引起 Uncaught TypeError: b.ga(...).nb is not a function  at HTMLSpanElement.eval  
-                //(eval at zZ (getscript?v=2.0&ak=CBb579132…&services=&t=20170411141812:1), <anonymous>:1:1279)
-                // console.log(item.location); 通过获取的数据的location顺序是 lat 在先
-                var point = new BMap.Point(item.location.lng, item.location.lat);
-                var marker = new BMap.Marker(point);
-                // 添加 marker 到地图， 
+        // 存储地图标注
+        self.markers = ko.observableArray();;
+        // 给地图添加标注及信息窗口
+        self.addDataToMap = function(map) {
+            for (const result of self.currentResults()) {
+                const point = new BMap.Point(result.location.lng, result.location.lat);
+                const marker = new BMap.Marker(point);
+                
+                // 在地图上显示marker
                 map.addOverlay(marker);
-                // 设置 marker 的title ，通过 getTtile() 方法获取
-                marker.setTitle(`${item.name}, ${item.address}`);
+                
+                 // 设置 marker 的title ，通过 getTtile() 方法获取
+                marker.setTitle(`${result.name}`);
                 // 添加 marker 的入场动画
                 marker.setAnimation(BMAP_ANIMATION_DROP);
-                // 添加鼠标点击显示内容
-                addClickHandler(marker.getTitle(), marker);
-                // 添加 marker 到 markers 数组
-                markers.push(marker);
-            });
 
-            // 给 marker 添加点击事件
-            function addClickHandler(content, marker) {
-                marker.addEventListener('click', function(e) {
-                    // 将所有marker的动画效果清空
-                    clearAnimation();
-                    // 添加跳动动画
-                    marker.setAnimation(BMAP_ANIMATION_BOUNCE);
-                    // 显示信息窗口
-                    openInfo(content, e.target);
-                });
+                // 将标注 marker 放入 markers
+                self.markers.push(marker);
+
+                // 给标注添加地址信息
+                marker.address = `${result.address}`;
+
+                // 获取地址详细信息
+                self.getPlaceDetail(result.uid, map, marker);
             }
-            // 将信息窗口放置在一个数组中，方便后续清除
-            let searchInfoWindows = [];
-            // 清除所有搜索信息窗口
-            function closeSearchInfoWindow() {
-                // 数组为空直接返回
-                if (!searchInfoWindows.length)return;
-                for(const searchInfoWindow of searchInfoWindows) {
-                    map.removeOverlay(searchInfoWindow);
+        };
+        
+
+        // 筛选列表
+        // 获取输入内容
+        self.keywordsString = ko.observable('');
+        // 临时results
+        self.currentResults = ko.computed(function() {
+            // 去除输入内容前后空格
+            const keywordsString = $.trim(self.keywordsString());
+            // 如果没有输入或者都是空格,直接返回self.results;
+            if (keywordsString.length === 0) return self.results();
+            const keywordsArray = keywordsString.split(' ');
+            
+            // 第一层循环遍历 results
+            // 建立一个list 存放筛选后的数据
+            // 检查 字符串 中是否含有 关键字
+            function hasKeywords(checkedStr, keywordStr) {
+                // 检查两个传参的数据类型
+                if (typeof checkedStr !== 'string') {
+                    console.error('Error: the type of checkedStr must be string');
+                    return;
                 }
+                if (typeof keywordStr !== 'string') {
+                    console.error('Error: the type of keywordStr param must be string');
+                    return;
+                }
+                return checkedStr.includes(keywordStr);
             }
 
-            // 显示信息窗口函数
-            function openInfo(content, marker) {
-
-                // 获取点击目标
-                // var marker = e.target;
-
-                // 返回信息窗口的设置
-                function searchInfoWindowOptions(marker) {
-                    return {
-                        title: marker.getTitle(), //标题
-                        width: 290, //宽度
-                        height: 105, //高度
-                        panel: "panel", //检索结果面板
-                        enableAutoPan: true, //自动平移
-                        searchTypes: [
-                            BMAPLIB_TAB_SEARCH, //周边检索
-                            BMAPLIB_TAB_TO_HERE, //到这里去
-                            BMAPLIB_TAB_FROM_HERE //从这里出发
-                        ]
-                    };
+            const list = [];
+            for(const item of self.results()) {
+                // 
+                let flag = false;
+                // 检查获取的数据中name 和 address 是否为字符串类型的数据
+                if (typeof item.name !== 'string' || typeof item.address !== 'string') {
+                    console.error(`Error: the data of item.name or item.address isn't typeof string`);
+                    return;
                 }
 
-                // 建立含检索功能的窗体
-                let searchInfoWindow = new BMapLib.SearchInfoWindow(map, content, searchInfoWindowOptions(marker));
-
-                // 打开窗口
-                searchInfoWindow.open(marker);
-
-                // 加入数组
-                searchInfoWindows.push(searchInfoWindow);
-            }
-            // 
-
-            // 清除动画效果
-            function clearAnimation() {
-                if (!markers) return;
-                markers.forEach(function(marker) {
-                    marker.setAnimation(null);
-                });
-            }
-
-            // 将 this 赋值给 self 方便后面代码调用
-            // 因为 this 的灵活性，会导致对象不明
-            var self = this;
-
-            // 设定 hasData 来表示 错误信息
-            this.hasData = ko.observable(true);
-
-            // 要牢记，经过 ko.observable()捕获的任何事物都变成了方法（函数），
-            // 需要（）执行后方可获得其值
-
-            // 绑定
-            this.header = ko.observable(city);
-            this.title = ko.observable(content);
-            // 搜索框值
-            this.q = ko.observable('');
-
-            // list 绑定为实时监控且双向绑定的对象
-            // 通过搭配模板中的 textInput 
-            // 每当 input 输入框中内容变化，list 随之而变
-            this.list = ko.computed(function() {
-                // 输入时，取消动画效果
-                clearAnimation();
-                // 关闭infoWindow
-                map.closeInfoWindow();
-                // 去除输入内容前后的空格
-                var keywordsString = $.trim(self.q());
-                // 将查询内容分割（单个空格）成关键字数组
-                // 更加智能的情况下 应该去除各类字符后 形成关键字数组
-                var keywordsArray = keywordsString.split(' ');
-                var list = [];
-                // 遍历所有 标注点
-                markers.forEach(function(marker) {
-                    // 定义检测变量 flag
-                    var flag = true;
-                    // 遍历所有 关键字
-                    keywordsArray.forEach(function(keyword) {
-                        // 非空的关键字比对
-                        if (keyword.length !== 0) {
-                            // 一旦不含 marker.getTitle() 中不含关键字
-                            // 即刻将flag变为false，且返回，后续不用比较，降低比较次数
-                            if (!(marker.getTitle().includes(keyword))) {
-                                return flag = false;
-                            }
+                for(const keyword of keywordsArray) {
+                    // 如果 keyword 为空字符串，不用检测
+                    if (keyword.length) {
+                        if (!(hasKeywords((item.name + item.address), keyword))) {
+                        // 只要内容中不含有某一关键词 即可跳出循环，不必进行后面运算
+                            flag = true;                            
+                            break;
                         }
-                    });
-                    // 根据检测变量 flag 确定 marker 是否该隐藏和加入数组list中
-                    if (flag) {
-                        marker.show();
-                        list.push(marker);
-                    } else {
-                        marker.hide();
+                    }
+                }
+
+                // 根据flag 决定是否加入list
+                if (!flag) list.push(item);
+            }            
+            // 返回列表
+            return list;
+        });
+        // 获取点击时的信息
+        self.currentItem = ko.observable(null);
+        self.listClick = function(item) {
+            // 设置当前输入框内容为点击目标 name
+            self.keywordsString(item.name);
+            // 隐藏列表
+            self.isShowListBox(false);
+            // 获取当前点击目标
+            self.currentItem(item);
+            // 隐藏其他标注
+            self.clickShow(item);
+        };
+        self.back = function() {
+            // 清空搜索框内容
+            self.keywordsString('');
+            // 显示列表
+            self.isShowListBox(true);
+            // 清楚标注动画效果
+            self.clearAnimation();
+            // 关闭所有信息窗口
+            self.closeInfoWindow();
+            // 显示所有 marker
+            self.showMarkers();
+        };
+        // 获取第三方信息
+        // 界面是否显示天气信息
+        self.isShowWeather = ko.observable(false);
+        self.toggleWeather = function() {
+            // 点击改变
+            self.isShowWeather(!self.isShowWeather());
+        };
+        // 绑定天气数据
+        self.weather = ko.observable();
+        // 获取天气信息
+        self.getCityWeather = function() {
+            // 中文转换拼音
+            const cityList = {
+                '北京': 'beijing',
+                '上海': 'shanghai',
+                '广州': 'guangzhou',
+                '杭州': 'hangzhou',
+                '成都': 'chengdu'
+            };
+            // 转换当前城市中文为拼音
+            let cityName = cityList[self.selectCity()];
+
+            // 根据cityid获取城市天气
+            function getWeather(cityid) {
+                $.ajax({
+                    url: 'http://weixin.jirengu.com/weather/now',
+                    type: 'GET',
+                    data: {
+                        cityid: cityid
+                    },
+                    success: function(data) {
+                        console.log('success');
+                        self.weather(data.weather[0]);
+                        // 改变
+                        self.toggleWeather(!self.toggleWeather());
+                    },
+                    error: function(e) {
+                        console.error(e.message);
                     }
                 });
-                return list;
+            }
+            // 获取当前城市id
+            $.ajax({
+                url: 'http://weixin.jirengu.com/weather/cityid',
+                type: 'GET',
+                data: {
+                    location: cityName                    
+                },
+                success: function(data) {
+                    console.log('success');
+                    // 成功获取id后获取天气
+                    getWeather(data.results[0].id);
+                },
+                error: function(e) {
+                    console.error(e);
+                }
             });
-            // 点击列表中的任一项目，使得输入框内的值等于点击项目
-            // 同时隐藏列表，显示点击项目的单体信息
-            this.currentItem = ko.observable(null);
-            // 控制是否显示的属性
-            this.toggle = ko.observable(true);
-            this.clickItem = function(item) {
-                if (!item) return;
-
-                self.currentItem(item.getTitle());
-                // 将地图中心设置为当前标注点
-                map.centerAndZoom(item.getPosition(), 15);
-                // 打开信息窗口
-                openInfo(item.getTitle(), item);
-
-                self.toggle(false);
-                self.q(item.getTitle());
-            };
-            this.mouseoverItem = function(item) {
-                item.setAnimation(BMAP_ANIMATION_BOUNCE);
-            };
-            this.mouseoutItem = function() {
-                clearAnimation();
-            };
-            // 清除动作
-            this.clearQueryInput = function() {
-                // 移除动画
-                clearAnimation();
-                // 关闭信息窗口
-                closeSearchInfoWindow();
-                // 还原地图中心
-                map.centerAndZoom(city, 13);
-                // 改变显示参考值
-                self.toggle(true);
-                self.q('');
-            };
-            // 查询当前网页正文宽度
-            this.bodyScrollWidth = ko.observable(document.body.scrollWidth);
-            // 设定窗口最大值
-            this.bodyMax = ko.observable(700);
-            // 查询列表 left 值的判断依据
-            this.isShowMenu = ko.observable(!self.comparedWith(self.bodyScrollWidth(), self.bodyMax()));
-            // 比较当前宽度和最大宽度
-            this.comparedWith = function(width, max) {
-                // 缩减代码
-                return width < max;
-            };
-            // 当窗口发生变化时
-            $(window).resize(function() {
-                // 更新网页正文宽度
-                self.bodyScrollWidth(document.body.scrollWidth);
-                // 更新isShowMenu的值
-                self.isShowMenu(!self.comparedWith(self.bodyScrollWidth(), self.bodyMax()));
-            });
-            // 点击按钮执行显示查询列表
-            this.toggleMenu = function() {
-                // 改变isShowMenu的为相反
-                self.isShowMenu(!self.isShowMenu());
-            };
         };
-        // 执行
-        initialData();
+
+        // 获取地点详情
+        self.getPlaceDetail = function(uid, map, marker) {
+            $.ajax({
+                url: 'http://api.map.baidu.com/place/v2/detail',
+                type: 'GET',
+                dataType: 'jsonp',
+                timeout: '3000',
+                contentType: 'application/json; utf-8',
+                data: {
+                    uid: uid,
+                    output: 'json',
+                    scope: 2,
+                    ak: BDAK
+                },
+                success: function(data) {
+                    // console.log('success', data);
+                    // 设置信息窗口内容
+                    const content = `<div>地址：${data.result.address}</div>
+                                     <div>标签：${data.result.detail_info.tag}</div>
+                                     <a target="_blank" href="${data.result.detail_info.detail_url}">更多详情</a>`;
+                    self.addClickHandler(map, content, marker);
+                },
+                error: function(e) {
+                    console.error(e.message);
+                    const content = `<div>没有更多信息</div>`;
+                    self.addClickHandler(map, content, marker);
+                }
+            });
+        };
+
+        // 添加地图点击事件
+        self.addClickHandler = function(map, content, marker) {
+            marker.addEventListener('click', function(e) {
+                // 将所有marker的动画效果清空
+                self.clearAnimation();
+                // 添加跳动动画
+                marker.setAnimation(BMAP_ANIMATION_BOUNCE);
+                // 显示信息窗口
+                self.openInfo(map, content, e.target);
+            });
+        };
+        self.searchInfoWindows = ko.observableArray();
+        // 打开信息窗口
+        self.openInfo = function(map, content, marker) {
+            // 设置信息窗口的内容
+            function searchInfoWindowOptions(marker) {
+                return {
+                    title: marker.getTitle(), //标题
+                    width: 290, //宽度
+                    height: 50, //高度
+                    panel: "panel", //检索结果面板
+                    enableAutoPan: true, //自动平移
+                    searchTypes: [
+                        BMAPLIB_TAB_SEARCH, //周边检索
+                        BMAPLIB_TAB_TO_HERE, //到这里去
+                        BMAPLIB_TAB_FROM_HERE //从这里出发
+                    ]
+                };
+            }
+            // 建立含检索功能的窗体
+            const searchInfoWindow = new BMapLib.SearchInfoWindow(map, content, searchInfoWindowOptions(marker));
+            // 放入窗口组中
+            self.searchInfoWindows.push(searchInfoWindow);
+            // 打开窗口
+            searchInfoWindow.open(marker);
+        };
+
+        // 关闭动画
+        self.clearAnimation = function() {
+            for(const marker of self.markers()) {
+                marker.setAnimation(null);
+            }
+        };
+        // 关闭信息窗口
+        self.closeInfoWindow = function() {
+            for (const searchInfoWindow of self.searchInfoWindows()) {
+                searchInfoWindow.close();
+            }
+        };
+        // 隐藏所有 marker
+        self.hideMarkers = function() {
+            for (const marker of self.markers()) {
+                marker.hide();
+            }
+        };
+        // 移除所有 marker
+        self.removeMarkers = function(map) {
+            for (const marker of self.markers()) {
+                map.removeOverlay(marker);
+            }
+        };
+        // 显示当前对应 marker
+        self.clickShow = function(item) {
+            for (const marker of self.markers()) {
+                if (marker.getTitle() !== item.name) {
+                    marker.hide();
+                }
+            }
+        };
+        // 鼠标移入
+        self.mouseoverItem = function(item) {
+            for (const marker of self.markers()) {
+                // 找到符合条件marker 即可退出循环
+                if (marker.getTitle() === item.name) {
+                    marker.setAnimation(BMAP_ANIMATION_BOUNCE);
+                    break;
+                }
+            }
+        };
+        // 鼠标移出
+        self.mouseoutItem = function() {
+            self.clearAnimation();
+        };
+
+        // 是否显示 菜单
+        self.isShowMenu = ko.observable(true);
+
+        self.toggleMenu = function() {
+            self.isShowMenu(!self.isShowMenu());
+        };
+
+        self.init = function() {
+
+            // 获取天气信息
+            self.getCityWeather();
+
+            // 获取数据
+            self.getDataFromBMap();
+
+            // 监控浏览器窗口变化，600为临界点
+            $(window).resize(function() {
+                // 获取当前body宽度:document.body.scrollWidth
+                // 比较当前宽度和最大宽度
+                // 是否显示 菜单
+                self.isShowMenu(document.body.scrollWidth > 600);
+            });
+
+            // 添加标注到地图
+            // self.addDataToMap(cityMap);
+        };
+        self.init()
     };
-    load('火锅', '成都');
-});
+    const viewModel = new ViewModel();
+    ko.applyBindings(viewModel);
+ });
