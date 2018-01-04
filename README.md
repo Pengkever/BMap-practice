@@ -10,6 +10,11 @@
 ## 修改
 * 重建了`app.js`
 * `index.html`及`style.css`略有改动
+#### 2018-01-04改动
+* 增加showMarkers()，以解决缺失带来的error
+* 增加changeMapCenter()，在点击列表时，地图中心跳转到当前地点
+* 增加weather-box可显示内容
+* 优化addDataToMap()，减少重复添加
 
 ## 新增
 * 下拉框选择相应的城市及项目，获取数据
