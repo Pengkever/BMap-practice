@@ -44,9 +44,10 @@
         // 获取地图
         const cityMap = self.initMap();
 
-        // 添加事件函数，当城市改变时，地图中心设置为当前城市
+        // 添加事件函数
         self.choose = function() {
-            cityMap.centerAndZoom(self.selectCity(), 13);
+            // 清除上一次点击
+            self.back();            
             // 清空上一次数据
             self.results([]);
             // 移除标注
@@ -57,6 +58,7 @@
             self.getDataFromBMap();
             // 获取天气
             self.getCityWeather();
+
         };
         // 是否显示list-box
         self.isShowListBox = ko.observable(true);
@@ -90,6 +92,9 @@
                     console.log('success');
                     // 没有更多数据，就返回true
                     if (data.results.length === 0) return self.isEndResults(true);
+                    // 改动，原来函数形参不包含 datas
+                    // 添加标注到地图 
+                    self.addDataToMap(cityMap, data.results);
                     // 获取更多数据
                     // 暂存当前数数
                     let tempResult = self.results();
@@ -97,8 +102,6 @@
                     tempResult = tempResult.concat(data.results);
                     // 更新数据
                     self.results(tempResult);
-                    // 添加标注到地图 
-                    self.addDataToMap(cityMap);
                 },
                 error: function(e) {
                     console.error('Error: ' + e.message);
@@ -109,8 +112,9 @@
         // 存储地图标注
         self.markers = ko.observableArray();;
         // 给地图添加标注及信息窗口
-        self.addDataToMap = function(map) {
-            for (const result of self.currentResults()) {
+        // 原来函数形参不包含 datas , 存在每次会重复的添加上一次已经添加过的 marker 的问题，改动后，减少了计算量
+        self.addDataToMap = function(map, datas) {
+            for (const result of datas) {
                 const point = new BMap.Point(result.location.lng, result.location.lat);
                 const marker = new BMap.Marker(point);
                 
@@ -123,10 +127,7 @@
                 marker.setAnimation(BMAP_ANIMATION_DROP);
 
                 // 将标注 marker 放入 markers
-                self.markers.push(marker);
-
-                // 给标注添加地址信息
-                marker.address = `${result.address}`;
+                self.markers.push(marker);                
 
                 // 获取地址详细信息
                 self.getPlaceDetail(result.uid, map, marker);
@@ -199,6 +200,8 @@
             self.currentItem(item);
             // 隐藏其他标注
             self.clickShow(item);
+            // 设置地图中心为当前地点
+            self.changeMapCenter(item);
         };
         self.back = function() {
             // 清空搜索框内容
@@ -211,6 +214,8 @@
             self.closeInfoWindow();
             // 显示所有 marker
             self.showMarkers();
+            // 还原地图中心为当前城市
+            cityMap.centerAndZoom(self.selectCity(), 12);
         };
         // 获取第三方信息
         // 界面是否显示天气信息
@@ -232,10 +237,23 @@
                 '成都': 'chengdu'
             };
             // 转换当前城市中文为拼音
-            let cityName = cityList[self.selectCity()];
+            const cityName = cityList[self.selectCity()];
 
             // 根据cityid获取城市天气
             function getWeather(cityid) {
+                // 检查是否所用数据是否存在，不存在，则赋值
+                // 防止绑定 undefined 数据错误
+                function checkWeather(weather) {
+                    const checkedWeather = weather;
+                    if (!checkedWeather.today.suggestion.dressing)
+                        checkedWeather.today.suggestion.dressing = {details: '没有数据'};
+                    if (!checkedWeather.today.suggestion.sport)
+                        checkedWeather.today.suggestion.sport = {details: '没有数据'};
+                    if (!checkedWeather.today.suggestion.restriction)
+                        checkedWeather.today.suggestion.restriction = {details: '没有数据'};
+
+                    return checkedWeather;
+                }
                 $.ajax({
                     url: 'http://weixin.jirengu.com/weather/now',
                     type: 'GET',
@@ -244,7 +262,8 @@
                     },
                     success: function(data) {
                         console.log('success');
-                        self.weather(data.weather[0]);
+                        const weather = checkWeather(data.weather[0]);
+                        self.weather(weather);
                         // 改变
                         self.toggleWeather(!self.toggleWeather());
                     },
@@ -340,14 +359,30 @@
 
         // 关闭动画
         self.clearAnimation = function() {
-            for(const marker of self.markers()) {
+            for (const marker of self.markers()) {
                 marker.setAnimation(null);
             }
+        };
+        // 打开信息窗口
+        self.changeMapCenter = function(item) {
+            for (const marker of self.markers()) {
+                if (item.name === marker.getTitle()) {
+                    /*console.log(marker.Gi.onclick);
+                    marker.setAnimation(BMAP_ANIMATION_BOUNCE);
+                    marker.Gi.onclick();*/
+                    cityMap.centerAndZoom(marker.getPosition(), 15);
+                }
+            }            
         };
         // 关闭信息窗口
         self.closeInfoWindow = function() {
             for (const searchInfoWindow of self.searchInfoWindows()) {
                 searchInfoWindow.close();
+            }
+        };
+        self.showMarkers = function() {
+            for (const marker of self.markers()) {
+                marker.show();
             }
         };
         // 隐藏所有 marker
@@ -408,8 +443,6 @@
                 self.isShowMenu(document.body.scrollWidth > 600);
             });
 
-            // 添加标注到地图
-            // self.addDataToMap(cityMap);
         };
         self.init()
     };

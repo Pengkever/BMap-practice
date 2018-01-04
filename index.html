@@ -27,7 +27,20 @@
                     <div data-bind="with: now">
                         <p>天气：<em data-bind="text: text"></em></p>
                         <p>温度：<em data-bind="text: temperature"></em></p>
-                    </div>                    
+                    </div>
+                    <div data-bind="with: today">
+                        <div data-bind="with: suggestion">
+                            <p data-bind="with: dressing">
+                                穿衣建议：<em data-bind="text: details"></em>
+                            </p>
+                            <p data-bind="with: sport">
+                                户外运动：<em data-bind="text: details"></em>
+                            </p>
+                            <p data-bind="with: restriction">
+                                尾号限行：<em data-bind="text: details"></em>
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="weatherInfo" data-bind="visible: true, with: weather">                

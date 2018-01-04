@@ -10,19 +10,17 @@ html, body, main {
     font-family: "Microsoft Yahei";
 }
 
+
 main {
     position: relative;
 }
 /* menu */
 #menu {
     position: absolute;
-    left: 2%;
-    top: 4%;
+    left: 20px;
+    top: 20px;
     z-index: 99;
     width: 300px;
-    height: 80%;
-    border-radius: 6px;
-    box-shadow: 2px 2px 2px #ccc;
 }
 .head, .title, .filter {
     background: rgba(0, 0, 0, 0.9);    
@@ -63,7 +61,7 @@ main {
     left: 330px;
     top: 0;
     padding: 20px;
-    width: 60px;
+    width: 100px;
     color: #fff;
     background: rgba(0, 0, 0, 0.7);
     border-radius: 6px;
@@ -73,7 +71,6 @@ main {
     border-radius: 0 0 6px 6px;
     color: #fff;
     background: rgba(0, 0, 0, 0.7);
-    overflow: auto;
 }
 .list-box {
     padding: 10px;
@@ -88,6 +85,10 @@ main {
     width: 100%;
     background: #FFFFCC;
     border: none;
+}
+.list-box {
+    height: 300px;
+    overflow: auto;
 }
 .list {
     list-style: none;
@@ -110,8 +111,8 @@ main {
 /* show-menu */
 #show-menu {
     position: absolute;
-    left: 30px;
-    top: 40px;
+    left: 40px;
+    top: 35px;
     padding: 4px;
     z-index: 100;
     border-radius: 6px;
@@ -123,3 +124,4 @@ main {
     height: 100%;
     background: #333;
 }
+
